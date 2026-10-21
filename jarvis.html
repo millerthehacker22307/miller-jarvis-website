@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Run Miller's Jarvis — No Download, Runs In Your Browser</title>
+<meta name="description" content="Miller's Jarvis runs right in your browser. No download, no install. A local AI model loads once into the browser, then chat, memory and scheduled tasks work on your machine.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; background: #050810; }
+  .font-display { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono2 { font-family: 'JetBrains Mono', monospace; }
+  .ring-arc { background: conic-gradient(from 0deg, #38bdf8, #818cf8, #e879f9, #38bdf8);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    animation: spin 14s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .bubble-m { background:#0e3a5c; }
+  .bubble-j { background:#131c30; }
+  #chat::-webkit-scrollbar, #side::-webkit-scrollbar { width: 6px; }
+  #chat::-webkit-scrollbar-thumb, #side::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+</style>
+</head>
+<body class="text-slate-200 antialiased h-screen flex flex-col overflow-hidden">
+
+<!-- HEADER -->
+<header class="flex items-center justify-between px-4 md:px-6 py-3 bg-[#0b1220] border-b border-white/5 shrink-0">
+  <div class="flex items-center gap-3">
+    <div class="relative w-9 h-9 shrink-0">
+      <div class="absolute inset-0 rounded-full ring-arc"></div>
+      <div id="coreDot" class="absolute inset-[10px] rounded-full bg-slate-500"></div>
+    </div>
+    <div>
+      <p class="font-display font-bold leading-none">MILLER'S <span class="text-sky-400">JARVIS</span></p>
+      <p id="statusLine" class="text-[11px] text-slate-400 mt-1">Not started yet — press Start Jarvis</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <select id="modelSel" class="bg-[#0e1626] border border-white/10 rounded-lg text-xs px-2 py-2 outline-none">
+      <option value="Llama-3.2-1B-Instruct-q4f32_1-MLC">Fast — Llama 3.2 1B (~0.9 GB)</option>
+      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC" selected>Balanced — Qwen 2.5 1.5B (~1.1 GB)</option>
+      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Smart — Qwen 2.5 3B (~1.9 GB)</option>
+    </select>
+    <button id="startBtn" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-sm px-4 py-2 rounded-full transition">▶ Start Jarvis</button>
+    <a href="index.html" class="hidden md:inline text-xs text-slate-400 hover:text-sky-300 border border-white/10 rounded-full px-3 py-2">← Home</a>
+  </div>
+</header>
+
+<!-- PROGRESS -->
+<div id="progressWrap" class="hidden shrink-0 bg-[#0b1220] border-b border-white/5 px-4 md:px-6 py-3">
+  <div class="flex justify-between text-[11px] text-slate-400 mb-1.5">
+    <span id="progressText">Preparing…</span><span id="progressPct">0%</span>
+  </div>
+  <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+    <div id="progressBar" class="h-full bg-gradient-to-r from-sky-400 to-fuchsia-400 rounded-full transition-all" style="width:0%"></div>
+  </div>
+  <p class="text-[11px] text-slate-500 mt-2">First start loads the AI model into your browser once (internet needed). After that it is cached — next visits start in seconds, and your chats never leave this device.</p>
+</div>
+
+<!-- MAIN -->
+<div class="flex flex-1 min-h-0">
+  <!-- CHAT -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <div id="chat" class="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-4"></div>
+    <div class="shrink-0 bg-[#0b1220] border-t border-white/5 px-4 md:px-6 py-3">
+      <div class="flex gap-2 max-w-4xl mx-auto">
+        <input id="input" type="text" placeholder="Jarvis se kuch bhi pucho… (Start dabana pehle zaroori hai)"
+          class="flex-1 bg-[#0e1626] border border-white/10 rounded-full px-5 py-3 text-sm outline-none focus:border-sky-400/60 placeholder:text-slate-500">
+        <button id="sendBtn" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-sm px-5 py-3 rounded-full transition shrink-0">Send ➤</button>
+      </div>
+      <p class="text-center text-[11px] text-slate-500 mt-2">Commands jo hamesha chalte hain: <span class="font-mono2">/remember</span> · <span class="font-mono2">/facts</span> · <span class="font-mono2">/schedule 2026-10-22 07:00 task</span> · <span class="font-mono2">/tasks</span> · <span class="font-mono2">/help</span></p>
+    </div>
+  </main>
+
+  <!-- SIDEBAR -->
+  <aside id="side" class="hidden lg:block w-72 shrink-0 bg-[#0b1220] border-l border-white/5 overflow-y-auto p-4">
+    <p class="font-display font-semibold text-sm">⏰ Pending Tasks</p>
+    <ul id="taskList" class="mt-2 space-y-1.5 text-xs text-slate-300"></ul>
+    <p class="font-display font-semibold text-sm mt-6">💾 Memory</p>
+    <p id="memInfo" class="text-xs text-slate-400 mt-2 leading-5"></p>
+    <button id="factsBtn" class="mt-3 text-xs bg-[#0e1626] border border-white/10 hover:border-sky-400/50 rounded-full px-3 py-2">Show everything Jarvis remembers</button>
+    <p class="font-display font-semibold text-sm mt-6">ℹ️ How this works</p>
+    <p class="text-xs text-slate-400 mt-2 leading-5">The AI model runs <b class="text-slate-200">inside your browser</b> on your own machine (WebLLM + WebGPU). No server, no account, no bill. Memory and tasks are saved in this browser only. Keep this tab open for scheduled tasks to fire.</p>
+  </aside>
+</div>
+
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+/* ---------------- storage (memory + tasks live in this browser) ---------------- */
+const store = {
+  get facts() { try { return JSON.parse(localStorage.getItem("mj_facts") || "[]"); } catch { return []; } },
+  set facts(v) { localStorage.setItem("mj_facts", JSON.stringify(v)); },
+  get tasks() { try { return JSON.parse(localStorage.getItem("mj_tasks") || "[]"); } catch { return []; } },
+  set tasks(v) { localStorage.setItem("mj_tasks", JSON.stringify(v)); },
+};
+const nowStr = () => {
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+/* ---------------- ui helpers ---------------- */
+const chatEl = document.getElementById("chat");
+const statusEl = document.getElementById("statusLine");
+const coreDot = document.getElementById("coreDot");
+function bubble(who, text) {
+  const wrap = document.createElement("div");
+  wrap.className = who === "miller" ? "flex flex-col items-end" : "flex flex-col items-start";
+  wrap.innerHTML = `<p class="text-[10px] font-semibold mb-1 ${who === "miller" ? "text-sky-400" : "text-fuchsia-300"}">${who === "miller" ? "You" : "Jarvis"}</p>
+    <div class="${who === "miller" ? "bubble-m" : "bubble-j"} max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap"></div>`;
+  wrap.querySelector("div").textContent = text;
+  chatEl.appendChild(wrap);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return wrap.querySelector("div");
+}
+function systemMsg(text) {
+  const p = document.createElement("p");
+  p.className = "text-center text-[11px] text-slate-500 italic";
+  p.textContent = text;
+  chatEl.appendChild(p);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+function refreshSide() {
+  const ul = document.getElementById("taskList");
+  const pending = store.tasks.filter(t => t.status === "pending").sort((a, b) => a.run_at.localeCompare(b.run_at));
+  ul.innerHTML = pending.length
+    ? pending.map(t => `<li class="bg-[#0e1626] border border-white/5 rounded-lg px-2.5 py-2">${t.run_at} — ${t.text}</li>`).join("")
+    : `<li class="text-slate-500">(no pending tasks)</li>`;
+  document.getElementById("memInfo").textContent =
+    `${store.facts.length} fact(s) remembered in this browser. Facts aur tasks isi device pe save hote hain.`;
+}
+document.getElementById("factsBtn").onclick = () => {
+  const f = store.facts;
+  bubble("jarvis", f.length ? "Ye sab yaad hai:\n" + f.map(x => "• " + x.text).join("\n") : "Abhi tak kuch yaad nahi hai. Kuch batao, yaad rakh lunga.");
+};
+
+/* ---------------- code-driven commands (always work) ---------------- */
+function handleCommand(text) {
+  const low = text.toLowerCase();
+  if (low === "/help") return "Commands:\n/remember <fact> — hamesha ke liye yaad rakho\n/facts — sab yaad dikhao\n/schedule YYYY-MM-DD HH:MM <task> — reminder lagao\n/tasks — pending tasks\n/done <id> — task pura mark karo\nBaaki sab normal chat hai.";
+  if (low.startsWith("/remember ")) {
+    const fact = text.slice(10).trim();
+    if (!fact) return "Kya yaad rakhun? /remember ke baad fact likho.";
+    const facts = store.facts;
+    if (!facts.some(f => f.text.toLowerCase() === fact.toLowerCase())) { facts.push({ id: Date.now(), text: fact }); store.facts = facts; }
+    refreshSide();
+    return `Yaad kar liya: ${fact}`;
+  }
+  if (low === "/facts") { const f = store.facts; return f.length ? "Ye sab yaad hai:\n" + f.map(x => `• [${x.id}] ${x.text}`).join("\n") : "Abhi tak kuch yaad nahi hai."; }
+  if (low.startsWith("/schedule ")) {
+    const parts = text.slice(10).trim().split(" ");
+    if (parts.length < 3) return "Format: /schedule 2026-10-22 07:00 Revise DBMS";
+    const run_at = parts[0] + " " + parts[1];
+    const tasks = store.tasks;
+    const t = { id: Date.now(), text: parts.slice(2).join(" "), run_at, status: "pending" };
+    tasks.push(t); store.tasks = tasks; refreshSide();
+    return `Task set ✔ [${run_at}] ${t.text}`;
+  }
+  if (low === "/tasks") {
+    const p = store.tasks.filter(t => t.status === "pending");
+    return p.length ? p.map(t => `[${t.id}] ${t.run_at} — ${t.text}`).join("\n") : "Koi pending task nahi hai.";
+  }
+  if (low.startsWith("/done ")) {
+    const id = Number(text.split(" ")[1]);
+    const tasks = store.tasks; const t = tasks.find(x => x.id === id);
+    if (!t) return "Wo task id nahi mili.";
+    t.status = "done"; store.tasks = tasks; refreshSide();
+    return "Task done mark ho gaya ✔";
+  }
+  return null;
+}
+
+/* ---------------- scheduler (fires while this tab is open) ---------------- */
+setInterval(() => {
+  const tasks = store.tasks; let changed = false;
+  for (const t of tasks) {
+    if (t.status === "pending" && t.run_at <= nowStr()) {
+      t.status = "done"; changed = true;
+      bubble("jarvis", `⏰ Reminder time ho gaya: ${t.text}`);
+      if ("Notification" in window && Notification.permission === "granted") new Notification("Jarvis reminder", { body: t.text });
+    }
+  }
+  if (changed) { store.tasks = tasks; refreshSide(); }
+}, 20000);
+
+/* ---------------- brain (WebLLM, runs 100% in-browser) ---------------- */
+let engine = null, history = [];
+const SYSTEM = `You are Jarvis, the personal assistant of Miller. You run fully inside his browser on his own laptop. Be warm, brief and practical, like a smart friend.
+1. THINK step by step before answering maths/logic questions; show brief reasoning, then the final answer.
+2. REMEMBER: facts about Miller are listed below — use them. If he tells you something worth keeping, politely confirm you will remember it.
+3. HONESTY: never invent facts, numbers or dates. If unsure, say so.
+4. LANGUAGE: reply in the same language he used (English / Hindi / Hinglish).`;
+function systemText() {
+  const f = store.facts.slice(-25).map(x => "- " + x.text).join("\n") || "- (nothing saved yet)";
+  const t = store.tasks.filter(x => x.status === "pending").slice(0, 10).map(x => `- [${x.run_at}] ${x.text}`).join("\n") || "- (no pending tasks)";
+  return `${SYSTEM}\n\nMEMORY (facts you remember about Miller):\n${f}\n\nPENDING TASKS:\n${t}`;
+}
+
+const startBtn = document.getElementById("startBtn");
+startBtn.onclick = async () => {
+  if (engine) return;
+  if (!navigator.gpu) {
+    statusEl.textContent = "WebGPU not available in this browser.";
+    bubble("jarvis", "Is browser me WebGPU nahi mila — Jarvis browser me chalne ke liye WebGPU chahiye. Google Chrome ya Microsoft Edge ke latest version me ye page kholo, chal jayega.");
+    return;
+  }
+  const model = document.getElementById("modelSel").value;
+  document.getElementById("modelSel").disabled = true;
+  startBtn.disabled = true; startBtn.textContent = "Loading…";
+  const wrap = document.getElementById("progressWrap");
+  wrap.classList.remove("hidden");
+  try {
+    engine = await webllm.CreateMLCEngine(model, {
+      initProgressCallback: (p) => {
+        const pct = Math.round((p.progress || 0) * 100);
+        document.getElementById("progressBar").style.width = pct + "%";
+        document.getElementById("progressPct").textContent = pct + "%";
+        document.getElementById("progressText").textContent = p.text || "Loading model…";
+        statusEl.textContent = "Model load ho raha hai… " + pct + "%";
+      },
+    });
+    wrap.classList.add("hidden");
+    coreDot.className = "absolute inset-[10px] rounded-full bg-sky-400 pulse-dot";
+    statusEl.textContent = "Ready — model is page pe chal raha hai. Kuch bhi pucho!";
+    startBtn.textContent = "✔ Jarvis Ready";
+    bubble("jarvis", "Namaste Miller! Main Jarvis — ab main tumhare browser me hi chal raha hun, koi download-install nahi. Kuch pucho, koi date/plan batao to yaad rakhunga, aur /schedule se task bhi laga dunga.");
+    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+  } catch (e) {
+    statusEl.textContent = "Model load fail ho gaya.";
+    bubble("jarvis", "Model load nahi ho paya. Internet check karke page refresh karke dobara Start dabao. Agar phir fail ho to Chrome/Edge try karo. (Detail: " + (e && e.message ? e.message : e) + ")");
+    startBtn.disabled = false; startBtn.textContent = "▶ Start Jarvis";
+    document.getElementById("modelSel").disabled = false;
+  }
+};
+
+/* ---------------- chat ---------------- */
+const input = document.getElementById("input");
+async function send() {
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  bubble("miller", text);
+  const cmd = text.startsWith("/") ? handleCommand(text) : null;
+  if (cmd !== null) { bubble("jarvis", cmd); return; }
+  if (!engine) { bubble("jarvis", "Pehle upar ▶ Start Jarvis dabao — model load hone ke baad chat chalegi. Commands (/remember, /schedule) bina model ke bhi chalte hain."); return; }
+  const out = bubble("jarvis", "…");
+  try {
+    const msgs = [{ role: "system", content: systemText() }, ...history.slice(-8), { role: "user", content: text }];
+    const stream = await engine.chat.completions.create({ messages: msgs, stream: true, temperature: 0.4 });
+    let full = "";
+    for await (const chunk of stream) {
+      const delta = chunk.choices?.[0]?.delta?.content || "";
+      full += delta;
+      out.textContent = full || "…";
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+    history.push({ role: "user", content: text }, { role: "assistant", content: full });
+  } catch (e) {
+    out.textContent = "Jawab banane me dikkat aayi — ek baar phir try karo. (Detail: " + (e && e.message ? e.message : e) + ")";
+  }
+}
+document.getElementById("sendBtn").onclick = send;
+input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+
+bubble("jarvis", "Welcome! Upar ▶ Start Jarvis dabao — pehli baar model is browser me load hoga (1-2 minute), uske baad main yahin chalunga. Tab tak /remember aur /schedule jaisi commands already kaam karti hain.");
+refreshSide();
+</script>
+</body>
+</html>
