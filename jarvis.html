@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Run Miller's Jarvis — No Download, Runs In Your Browser</title>
-<meta name="description" content="Miller's Jarvis runs right in your browser. No download, no install. A local AI model loads once into the browser, then chat, memory and scheduled tasks work on your machine.">
+<meta name="description" content="Miller's Jarvis runs right in your browser in Turbo mode. No install: a compact local AI model loads once into the browser, then chat, memory and scheduled tasks work on your machine.">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -36,14 +36,15 @@
     </div>
     <div>
       <p class="font-display font-bold leading-none">MILLER'S <span class="text-sky-400">JARVIS</span></p>
-      <p id="statusLine" class="text-[11px] text-slate-400 mt-1">Not started yet — press Start Jarvis</p>
+      <p id="statusLine" class="text-[11px] text-slate-400 mt-1">Turbo Jarvis auto-start ho raha hai…</p>
     </div>
   </div>
   <div class="flex items-center gap-2">
     <select id="modelSel" class="bg-[#0e1626] border border-white/10 rounded-lg text-xs px-2 py-2 outline-none">
-      <option value="Llama-3.2-1B-Instruct-q4f32_1-MLC">Fast — Llama 3.2 1B (~0.9 GB)</option>
-      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC" selected>Balanced — Qwen 2.5 1.5B (~1.1 GB)</option>
-      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Smart — Qwen 2.5 3B (~1.9 GB)</option>
+      <option value="SmolLM2-360M-Instruct-q4f16_1-MLC" selected>⚡ Turbo — 360M (~250 MB, fastest)</option>
+      <option value="Llama-3.2-1B-Instruct-q4f32_1-MLC">Balanced — Llama 3.2 1B (~0.9 GB)</option>
+      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Smart — Qwen 2.5 1.5B (~1.1 GB)</option>
+      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Heavy — Qwen 2.5 3B (~1.9 GB, slow)</option>
     </select>
     <button id="startBtn" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-sm px-4 py-2 rounded-full transition">▶ Start Jarvis</button>
     <a href="index.html" class="hidden md:inline text-xs text-slate-400 hover:text-sky-300 border border-white/10 rounded-full px-3 py-2">← Home</a>
@@ -58,7 +59,7 @@
   <div class="h-2 rounded-full bg-white/5 overflow-hidden">
     <div id="progressBar" class="h-full bg-gradient-to-r from-sky-400 to-fuchsia-400 rounded-full transition-all" style="width:0%"></div>
   </div>
-  <p class="text-[11px] text-slate-500 mt-2">First start loads the AI model into your browser once (internet needed). After that it is cached — next visits start in seconds, and your chats never leave this device.</p>
+  <p class="text-[11px] text-slate-500 mt-2">Turbo mode pehli baar lagbhag 250 MB browser me load karega (internet needed). Uske baad model cache ho jayega — next visits much faster hongi, aur chats isi device par rahengi.</p>
 </div>
 
 <!-- MAIN -->
@@ -68,7 +69,7 @@
     <div id="chat" class="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-4"></div>
     <div class="shrink-0 bg-[#0b1220] border-t border-white/5 px-4 md:px-6 py-3">
       <div class="flex gap-2 max-w-4xl mx-auto">
-        <input id="input" type="text" placeholder="Jarvis se kuch bhi pucho… (Start dabana pehle zaroori hai)"
+        <input id="input" type="text" placeholder="Jarvis se kuch bhi pucho… Turbo auto-start ho raha hai"
           class="flex-1 bg-[#0e1626] border border-white/10 rounded-full px-5 py-3 text-sm outline-none focus:border-sky-400/60 placeholder:text-slate-500">
         <button id="sendBtn" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-sm px-5 py-3 rounded-full transition shrink-0">Send ➤</button>
       </div>
@@ -84,12 +85,13 @@
     <p id="memInfo" class="text-xs text-slate-400 mt-2 leading-5"></p>
     <button id="factsBtn" class="mt-3 text-xs bg-[#0e1626] border border-white/10 hover:border-sky-400/50 rounded-full px-3 py-2">Show everything Jarvis remembers</button>
     <p class="font-display font-semibold text-sm mt-6">ℹ️ How this works</p>
-    <p class="text-xs text-slate-400 mt-2 leading-5">The AI model runs <b class="text-slate-200">inside your browser</b> on your own machine (WebLLM + WebGPU). No server, no account, no bill. Memory and tasks are saved in this browser only. Keep this tab open for scheduled tasks to fire.</p>
+    <p class="text-xs text-slate-400 mt-2 leading-5"><b class="text-slate-200">Turbo is the default</b> because it is several times lighter than the bigger models. It is best for routine chat, quick questions, memory and tasks. Bigger models are smarter but load and answer much more slowly on this laptop. Memory and tasks are saved in this browser only; keep the tab open for scheduled tasks to fire.</p>
   </aside>
 </div>
 
-<script type="module">
-import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+<script>
+"use strict";
+const WEBLLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm";
 
 /* ---------------- storage (memory + tasks live in this browser) ---------------- */
 const store = {
@@ -107,6 +109,14 @@ const nowStr = () => {
 const chatEl = document.getElementById("chat");
 const statusEl = document.getElementById("statusLine");
 const coreDot = document.getElementById("coreDot");
+const modelSel = document.getElementById("modelSel");
+const savedModel = localStorage.getItem("mj_model");
+if (savedModel && [...modelSel.options].some(o => o.value === savedModel)) {
+  modelSel.value = savedModel;
+} else {
+  // Pehle wale heavy default ko hamesha Turbo se replace karo.
+  modelSel.value = "SmolLM2-360M-Instruct-q4f16_1-MLC";
+}
 function bubble(who, text) {
   const wrap = document.createElement("div");
   wrap.className = who === "miller" ? "flex flex-col items-end" : "flex flex-col items-start";
@@ -174,6 +184,42 @@ function handleCommand(text) {
   return null;
 }
 
+/* ---------------- instant local answers (no model wait) ---------------- */
+function tryInstantAnswer(text) {
+  const low = text.toLowerCase().trim();
+
+  // Natural "yaad rakho / remember" requests are saved immediately.
+  const rememberMatch = text.match(/^(?:jarvis[, ]+)?(?:please\s+)?(?:yaad rakho|remember(?: that)?)[:\s]+(.+)/i);
+  if (rememberMatch && rememberMatch[1].trim().length > 2) {
+    return handleCommand("/remember " + rememberMatch[1].trim());
+  }
+
+  // Clock/date questions do not need the AI model.
+  if (/(\btime\b|samay|kitne baje|current date|aaj ki date|today'?s date|aaj.*din|today.*day)/i.test(low)) {
+    const d = new Date();
+    return "Abhi ka local time/date: " + d.toLocaleString("en-IN", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+      hour: "numeric", minute: "2-digit", second: "2-digit"
+    }) + ".";
+  }
+
+  // Safe arithmetic: only digits and maths symbols reach the evaluator.
+  const cleaned = low
+    .replace(/^(calculate|calc|solve|what is|what's|kitna hoga|batao)[:\s]*/i, "")
+    .replace(/[=?]+\s*$/g, "")
+    .replace(/×/g, "*").replace(/÷/g, "/").replace(/,/g, "")
+    .trim();
+  if (/^[\d\s+\-*/().%]+$/.test(cleaned) && /\d/.test(cleaned) && /[+\-*/%]/.test(cleaned) && cleaned.length <= 80) {
+    try {
+      const value = Function(`"use strict"; return (${cleaned});`)();
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return `Answer: ${Math.round((value + Number.EPSILON) * 1e10) / 1e10}`;
+      }
+    } catch (_) { /* fall through to the model */ }
+  }
+  return null;
+}
+
 /* ---------------- scheduler (fires while this tab is open) ---------------- */
 setInterval(() => {
   const tasks = store.tasks; let changed = false;
@@ -188,54 +234,85 @@ setInterval(() => {
 }, 20000);
 
 /* ---------------- brain (WebLLM, runs 100% in-browser) ---------------- */
-let engine = null, history = [];
-const SYSTEM = `You are Jarvis, the personal assistant of Miller. You run fully inside his browser on his own laptop. Be warm, brief and practical, like a smart friend.
-1. THINK step by step before answering maths/logic questions; show brief reasoning, then the final answer.
-2. REMEMBER: facts about Miller are listed below — use them. If he tells you something worth keeping, politely confirm you will remember it.
-3. HONESTY: never invent facts, numbers or dates. If unsure, say so.
-4. LANGUAGE: reply in the same language he used (English / Hindi / Hinglish).`;
+let webllm = null, engine = null, engineLoading = false, history = [];
+const SYSTEM = `You are Jarvis, Miller's assistant. Reply briefly and practically in his language (English/Hindi/Hinglish). For maths or logic, give short steps, then the answer. Use the saved facts/tasks below. Never invent facts or dates.`;
 function systemText() {
-  const f = store.facts.slice(-25).map(x => "- " + x.text).join("\n") || "- (nothing saved yet)";
-  const t = store.tasks.filter(x => x.status === "pending").slice(0, 10).map(x => `- [${x.run_at}] ${x.text}`).join("\n") || "- (no pending tasks)";
-  return `${SYSTEM}\n\nMEMORY (facts you remember about Miller):\n${f}\n\nPENDING TASKS:\n${t}`;
+  const f = store.facts.slice(-8).map(x => "- " + x.text).join("\n") || "- (nothing saved yet)";
+  const t = store.tasks.filter(x => x.status === "pending").slice(0, 5).map(x => `- [${x.run_at}] ${x.text}`).join("\n") || "- (no pending tasks)";
+  return `${SYSTEM}\n\nSAVED FACTS:\n${f}\n\nPENDING TASKS:\n${t}`;
 }
 
 const startBtn = document.getElementById("startBtn");
-startBtn.onclick = async () => {
-  if (engine) return;
+let autoStartTimer = null;
+
+async function startJarvis(auto = false) {
+  if (engine || engineLoading) return;
   if (!navigator.gpu) {
     statusEl.textContent = "WebGPU not available in this browser.";
     bubble("jarvis", "Is browser me WebGPU nahi mila — Jarvis browser me chalne ke liye WebGPU chahiye. Google Chrome ya Microsoft Edge ke latest version me ye page kholo, chal jayega.");
     return;
   }
-  const model = document.getElementById("modelSel").value;
-  document.getElementById("modelSel").disabled = true;
-  startBtn.disabled = true; startBtn.textContent = "Loading…";
+
+  const model = modelSel.value;
+  localStorage.setItem("mj_model", model);
+  const isTurbo = model.includes("360M");
+  engineLoading = true;
+  modelSel.disabled = true;
+  startBtn.disabled = true;
+  startBtn.textContent = "⚡ Loading…";
   const wrap = document.getElementById("progressWrap");
   wrap.classList.remove("hidden");
+
   try {
+    if (!webllm) {
+      statusEl.textContent = "Fast engine load ho raha hai…";
+      // Lazy-load: page aur commands pehle khulte hain; heavy AI library sirf Start par aati hai.
+      webllm = await import(WEBLLM_URL);
+    }
     engine = await webllm.CreateMLCEngine(model, {
       initProgressCallback: (p) => {
         const pct = Math.round((p.progress || 0) * 100);
         document.getElementById("progressBar").style.width = pct + "%";
         document.getElementById("progressPct").textContent = pct + "%";
         document.getElementById("progressText").textContent = p.text || "Loading model…";
-        statusEl.textContent = "Model load ho raha hai… " + pct + "%";
+        statusEl.textContent = (isTurbo ? "Turbo" : "Model") + " load ho raha hai… " + pct + "%";
       },
     });
+    engineLoading = false;
     wrap.classList.add("hidden");
     coreDot.className = "absolute inset-[10px] rounded-full bg-sky-400 pulse-dot";
-    statusEl.textContent = "Ready — model is page pe chal raha hai. Kuch bhi pucho!";
+    statusEl.textContent = isTurbo
+      ? "✔ Turbo Ready — ab jawab fast aayenge."
+      : "✔ Jarvis Ready — model is page pe chal raha hai.";
     startBtn.textContent = "✔ Jarvis Ready";
-    bubble("jarvis", "Namaste Miller! Main Jarvis — ab main tumhare browser me hi chal raha hun, koi download-install nahi. Kuch pucho, koi date/plan batao to yaad rakhunga, aur /schedule se task bhi laga dunga.");
-    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+    bubble("jarvis", isTurbo
+      ? "✔ Turbo Jarvis ready hai. Ab pucho — routine sawalon ke jawab fast milenge."
+      : "✔ Jarvis ready hai. Ab kuch bhi pucho.");
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
   } catch (e) {
+    engineLoading = false;
     statusEl.textContent = "Model load fail ho gaya.";
-    bubble("jarvis", "Model load nahi ho paya. Internet check karke page refresh karke dobara Start dabao. Agar phir fail ho to Chrome/Edge try karo. (Detail: " + (e && e.message ? e.message : e) + ")");
-    startBtn.disabled = false; startBtn.textContent = "▶ Start Jarvis";
-    document.getElementById("modelSel").disabled = false;
+    bubble("jarvis", "Model load nahi ho paya. Internet check karke page refresh karke dobara Start dabao. Turbo model sabse halka hai — wahi selected rakho. Agar phir fail ho to Chrome/Edge try karo. (Detail: " + (e && e.message ? e.message : e) + ")");
+    startBtn.disabled = false;
+    startBtn.textContent = "▶ Start Jarvis";
+    modelSel.disabled = false;
   }
-};
+}
+
+startBtn.onclick = () => startJarvis(false);
+modelSel.addEventListener("change", () => {
+  localStorage.setItem("mj_model", modelSel.value);
+  if (!engine && !engineLoading) {
+    statusEl.textContent = "Selected model auto-start ho raha hai…";
+    clearTimeout(autoStartTimer);
+    autoStartTimer = setTimeout(() => startJarvis(true), 900);
+  }
+});
+
+// Jarvis khud start hota hai — user ko Start button ka wait/click nahi karna.
+autoStartTimer = setTimeout(() => startJarvis(true), 900);
 
 /* ---------------- chat ---------------- */
 const input = document.getElementById("input");
@@ -244,21 +321,56 @@ async function send() {
   if (!text) return;
   input.value = "";
   bubble("miller", text);
+
   const cmd = text.startsWith("/") ? handleCommand(text) : null;
   if (cmd !== null) { bubble("jarvis", cmd); return; }
-  if (!engine) { bubble("jarvis", "Pehle upar ▶ Start Jarvis dabao — model load hone ke baad chat chalegi. Commands (/remember, /schedule) bina model ke bhi chalte hain."); return; }
+
+  // Maths, time/date, "yaad rakho" — ye model ka wait kiye bina turant hota hai.
+  const instant = tryInstantAnswer(text);
+  if (instant !== null) { bubble("jarvis", instant); return; }
+
+  if (!engine) {
+    if (engineLoading) {
+      bubble("jarvis", "Turbo abhi load ho raha hai — progress upar dikh raha hai. Ready hote hi normal sawal bhej dena; commands aur maths abhi bhi turant chal rahe hain.");
+    } else {
+      bubble("jarvis", "Jarvis auto-start ho raha hai. Agar upar error aaya ho to ▶ Start Jarvis dabao; commands tab tak bhi chal rahe hain.");
+      startJarvis(true);
+    }
+    return;
+  }
+
   const out = bubble("jarvis", "…");
   try {
-    const msgs = [{ role: "system", content: systemText() }, ...history.slice(-8), { role: "user", content: text }];
-    const stream = await engine.chat.completions.create({ messages: msgs, stream: true, temperature: 0.4 });
+    const isTurbo = modelSel.value.includes("360M");
+    const msgs = [
+      { role: "system", content: systemText() },
+      ...history.slice(-4),
+      { role: "user", content: text },
+    ];
+    const stream = await engine.chat.completions.create({
+      messages: msgs,
+      stream: true,
+      temperature: 0.3,
+      max_tokens: isTurbo ? 192 : 320,
+    });
     let full = "";
+    let lastPaint = 0;
     for await (const chunk of stream) {
       const delta = chunk.choices?.[0]?.delta?.content || "";
+      if (!delta) continue;
       full += delta;
-      out.textContent = full || "…";
-      chatEl.scrollTop = chatEl.scrollHeight;
+      const now = performance.now();
+      // Har token par screen repaint karna weak laptops ko slow karta hai; ~90ms me ek baar paint karo.
+      if (now - lastPaint > 90) {
+        out.textContent = full;
+        chatEl.scrollTop = chatEl.scrollHeight;
+        lastPaint = now;
+      }
     }
+    out.textContent = full || "…";
+    chatEl.scrollTop = chatEl.scrollHeight;
     history.push({ role: "user", content: text }, { role: "assistant", content: full });
+    if (history.length > 8) history = history.slice(-8);
   } catch (e) {
     out.textContent = "Jawab banane me dikkat aayi — ek baar phir try karo. (Detail: " + (e && e.message ? e.message : e) + ")";
   }
@@ -266,7 +378,7 @@ async function send() {
 document.getElementById("sendBtn").onclick = send;
 input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
 
-bubble("jarvis", "Welcome! Upar ▶ Start Jarvis dabao — pehli baar model is browser me load hoga (1-2 minute), uske baad main yahin chalunga. Tab tak /remember aur /schedule jaisi commands already kaam karti hain.");
+bubble("jarvis", "Welcome! ⚡ Turbo Jarvis khud start ho raha hai — koi button dabane ki tension nahi. Pehli baar halka model load hoga; maths, time, /remember aur /schedule tab tak bhi turant kaam kar rahe hain.");
 refreshSide();
 </script>
 </body>
